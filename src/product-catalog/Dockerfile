@@ -1,26 +1,16 @@
-# Copyright The OpenTelemetry Authors
-# SPDX-License-Identifier: Apache-2.0
-
-
 FROM golang:1.22-alpine AS builder
 
-WORKDIR /usr/src/app/
+WORKDIR /usr/src/app
 
-RUN --mount=type=cache,target=/go/pkg/mod/ \
-    --mount=type=bind,source=./src/product-catalog/go.sum,target=go.sum \
-    --mount=type=bind,source=./src/product-catalog/go.mod,target=go.mod \
-    go mod download
-
-RUN --mount=type=cache,target=/go/pkg/mod/ \
-    --mount=type=cache,target=/root/.cache/go-build \
-    --mount=type=bind,rw,source=./src/product-catalog,target=. \
-    go build -ldflags "-s -w" -o /go/bin/product-catalog/ ./
+COPY . .
+RUN go mod download
+RUN go build -o product-catalog ./
 
 FROM alpine AS release
 
 WORKDIR /usr/src/app/
+COPY ./products ./products
+COPY --from=builder /usr/src/app/product-catalog ./
 
-COPY --from=builder /go/bin/product-catalog/ ./
-
-EXPOSE ${PRODUCT_CATALOG_PORT}
+ENV PRODUCT_CATALOG_PORT 8088
 ENTRYPOINT [ "./product-catalog" ]
